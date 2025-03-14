@@ -51,5 +51,5 @@ builder.defineStreamHandler(({ type, id }) => {
 });
 
 // Iniciar el servidor
-serveHTTP(builder.getInterface(), { port: process.env.PORT || 7001 });
-console.log('Addon One Pace en Español corriendo en http://localhost:7001');
+serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
+console.log('Addon One Pace en Español corriendo en http://localhost:7000');
