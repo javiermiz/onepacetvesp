@@ -1,0 +1,29 @@
+{
+  "id": "org.javermiz.onepace.spanish",
+  "version": "1.0.0",
+  "name": "One Pace en Español",
+  "description": "One Piece editado sin relleno (One Pace) en Español",
+  "logo": "https://www.pngall.com/wp-content/uploads/13/One-Piece-Logo-PNG-Photos.png",
+  "background": "https://images2.alphacoders.com/735/thumb-1920-735707.jpg",
+  "resources": [
+    "catalog",
+    "meta",
+    "stream"
+  ],
+  "types": [
+    "series"
+  ],
+  "catalogs": [
+    {
+      "type": "series",
+      "id": "one_pace_catalog",
+      "name": "One Pace en Español",
+      "extra": [
+        {
+          "name": "search",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,224 @@
+[
+  {
+    "id": "1",
+    "title": "Romance Dawn",
+    "season": 1,
+    "poster": "https://i.ibb.co/rR1KzrvQ/image.jpg"
+  },
+  {
+    "id": "2",
+    "title": "Ciudad Orange",
+    "season": 2,
+    "poster": "https://i.ibb.co/vxw4gf6V/image.jpg"
+  },
+  {
+    "id": "3",
+    "title": "Villa Syrup",
+    "season": 3,
+    "poster": "https://i.ibb.co/67jnWyZS/image.jpg"
+  },
+  {
+    "id": "4",
+    "title": "Gaimon",
+    "season": 4,
+    "poster": "https://i.ibb.co/pjhqZ9TN/image.jpg"
+  },
+  {
+    "id": "5",
+    "title": "Baratie",
+    "season": 5,
+    "poster": "https://i.ibb.co/tPxxmYZZ/image.jpg"
+  },
+  {
+    "id": "6",
+    "title": "Arlong Park",
+    "season": 6,
+    "poster": "https://i.ibb.co/PZfJw2Rd/image.jpg"
+  },
+  {
+    "id": "7",
+    "title": "Las aventuras de los Piratas de Buggy",
+    "season": 7,
+    "poster": "https://i.ibb.co/Nv8kkSQ/image.jpg"
+  },
+  {
+    "id": "8",
+    "title": "Loguetown",
+    "season": 8,
+    "poster": "https://i.ibb.co/d05QnvZL/image.jpg"
+  },
+  {
+    "id": "9",
+    "title": "Reverse Mountain",
+    "season": 9,
+    "poster": "https://i.ibb.co/ZqZxpvM/image.jpg"
+  },
+  {
+    "id": "10",
+    "title": "Whisky Peak",
+    "season": 10,
+    "poster": "https://i.ibb.co/ZRz7SCQx/image.jpg"
+  },
+  {
+    "id": "11",
+    "title": "El diario de la lucha de Koby-Meppo",
+    "season": 11,
+    "poster": "https://i.ibb.co/bMM5XNTv/image.jpg"
+  },
+  {
+    "id": "12",
+    "title": "Little Garden",
+    "season": 12,
+    "poster": "https://i.ibb.co/3yS9G8fj/image.jpg"
+  },
+  {
+    "id": "13",
+    "title": "Isla de Drum",
+    "season": 13,
+    "poster": "https://i.ibb.co/1YcQWZfq/image.jpg"
+  },
+  {
+    "id": "14",
+    "title": "Arabasta",
+    "season": 14,
+    "poster": "https://i.ibb.co/gcqDTbG/image.jpg"
+  },
+  {
+    "id": "15",
+    "title": "Jaya",
+    "season": 15,
+    "poster": "https://i.ibb.co/NgYsWqRp/image.jpg"
+  },
+  {
+    "id": "16",
+    "title": "Skypiea",
+    "season": 16,
+    "poster": "https://i.ibb.co/B5FyY2Gy/image.jpg"
+  },
+  {
+    "id": "17",
+    "title": "Long Ring Long Land",
+    "season": 17,
+    "poster": "https://i.ibb.co/Cy37xXP/image.jpg"
+  },
+  {
+    "id": "18",
+    "title": "Water Seven",
+    "season": 18,
+    "poster": "https://i.ibb.co/TM6kCPj6/image.jpg"
+  },
+  {
+    "id": "19",
+    "title": "Enies Lobby",
+    "season": 19,
+    "poster": "https://i.ibb.co/FpRkwk2/image.jpg"
+  },
+  {
+    "id": "20",
+    "title": "Post-Enies Lobby",
+    "season": 20,
+    "poster": "https://i.ibb.co/KpF1DZWw/image.jpg"
+  },
+  {
+    "id": "21",
+    "title": "Thriller Bark",
+    "season": 21,
+    "poster": "https://i.ibb.co/Xf2VJcc5/image.jpg"
+  },
+  {
+    "id": "22",
+    "title": "Archipiélago Sabaody",
+    "season": 22,
+    "poster": "https://i.ibb.co/RkqN5pQd/image.jpg"
+  },
+  {
+    "id": "23",
+    "title": "Amazon Lily",
+    "season": 23,
+    "poster": "https://i.ibb.co/R4VWjrdT/image.jpg"
+  },
+  {
+    "id": "24",
+    "title": "Impel Down",
+    "season": 24,
+    "poster": "https://i.ibb.co/v4Mb1prx/image.jpg"
+  },
+  {
+    "id": "25",
+    "title": "Si fueras a salir de viaje... Las aventuras de los Sombrero de Paja",
+    "season": 25,
+    "poster": "https://i.ibb.co/tp5yC7hk/image.jpg"
+  },
+  {
+    "id": "26",
+    "title": "Marineford",
+    "season": 26,
+    "poster": "https://i.ibb.co/DPShkxFp/image.jpg"
+  },
+  {
+    "id": "27",
+    "title": "3D2Y",
+    "season": 27,
+    "poster": "https://i.ibb.co/MyygdKZw/image.jpg"
+  },
+  {
+    "id": "28",
+    "title": "Regreso a Sabaody",
+    "season": 28,
+    "poster": "https://i.ibb.co/svjPFcdg/image.jpg"
+  },
+  {
+    "id": "29",
+    "title": "Isla Gyojin",
+    "season": 29,
+    "poster": "https://i.ibb.co/zhnrr03N/image.jpg"
+  },
+  {
+    "id": "30",
+    "title": "Punk Hazard",
+    "season": 30,
+    "poster": "https://i.ibb.co/yFQ5TbKD/image.jpg"
+  },
+  {
+    "id": "31",
+    "title": "Dressrosa",
+    "season": 31,
+    "poster": "https://i.ibb.co/nNT9v6r7/image.jpg"
+  },
+  {
+    "id": "32",
+    "title": "Zou",
+    "season": 32,
+    "poster": "https://i.ibb.co/NdBCsSZs/image.jpg"
+  },
+  {
+    "id": "33",
+    "title": "Whole Cake Island",
+    "season": 33,
+    "poster": "https://i.ibb.co/5WXWjmHy/image.jpg"
+  },
+  {
+    "id": "34",
+    "title": "Levely",
+    "season": 34,
+    "poster": "https://i.ibb.co/9HbDyLzj/image.jpg"
+  },
+  {
+    "id": "35",
+    "title": "País de Wa",
+    "season": 35,
+    "poster": "https://i.ibb.co/m5xNXTz8/image.jpg"
+  },
+  {
+    "id": "36",
+    "title": "Egghead",
+    "season": 36,
+    "poster": "https://i.ibb.co/fYKHXNbt/image.jpg"
+  },
+  {
+    "id": "37",
+    "title": "Special: One Piece Fan Letter",
+    "season": 37,
+    "poster": "https://www.pngall.com/wp-content/uploads/13/One-Piece-Logo-PNG-Photos.png"
+  }
+]
