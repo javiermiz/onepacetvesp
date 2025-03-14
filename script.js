@@ -164,7 +164,6 @@ async function createOnePaceAddon() {
                   const video = {
                     id: videoId,
                     title: `${arcName} - Episodio ${episodeNumber}`,
-                    released: new Date().toISOString(),
                     season: seasonNumber,
                     episode: episodeNumber,
                     thumbnail: poster, // Usamos el mismo póster como thumbnail
