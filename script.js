@@ -281,8 +281,8 @@ builder.defineStreamHandler(({ type, id }) => {
 });
 
 // Iniciar el servidor
-serveHTTP(builder.getInterface(), { port: process.env.PORT || 7001 });
-console.log("Addon One Pace en Español corriendo en http://localhost:7001");
+serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
+console.log("Addon One Pace en Español corriendo en http://localhost:7000");
 `;
 
     // Guardar el addon
@@ -313,7 +313,7 @@ console.log("Addon One Pace en Español corriendo en http://localhost:7001");
     console.log('Para correr el addon:');
     console.log('1. Instala las dependencias: npm install');
     console.log('2. Inicia el addon: npm start');
-    console.log('3. Instala en Stremio: http://localhost:7001/manifest.json');
+    console.log('3. Instala en Stremio: http://localhost:7000/manifest.json');
   } catch (error) {
     console.error('Error al crear el addon:', error);
   }
