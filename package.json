@@ -1,0 +1,13 @@
+{
+  "name": "one-pace-espanol-addon",
+  "version": "1.0.0",
+  "description": "Addon de Stremio para One Pace en Español",
+  "main": "addon.js",
+  "scripts": {
+    "start": "node addon.js"
+  },
+  "dependencies": {
+    "stremio-addon-sdk": "^1.6.10",
+    "axios": "^0.21.1"
+  }
+}
