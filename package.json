@@ -1,6 +1,6 @@
 {
   "name": "one-pace-espanol-addon",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "One Piece editado sin relleno (One Pace) en Español",
   "main": "addon.js",
   "scripts": {
