@@ -1,7 +1,5 @@
 
 const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
-const fs = require('fs');
-const path = require('path');
 
 // Cargar datos desde archivos JSON
 const manifest = require('./data/manifest.json');

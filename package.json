@@ -5,7 +5,7 @@
   "main": "addon.js",
   "scripts": {
     "start": "node addon.js",
-    "build": "node generator.js"
+    "build": "node script.js"
   },
   "dependencies": {
     "stremio-addon-sdk": "^1.6.10",
