@@ -1,225 +1,473 @@
-// generator.js
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 const axios = require("axios");
 const metadata = require("./metadata");
 
-// Función principal
-async function createOnePaceAddon() {
-  try {
-    // Crea la estructura de directorios
-    const directories = [
-      metadata.paths.dataDir,
-      metadata.paths.srcDir,
-      metadata.paths.publicDir,
-    ];
+const ensure_dirs = ({ dirs }) => {
+  dirs.forEach((d) => {
+    if (!fs.existsSync(d)) fs.mkdirSync(d);
+  });
+};
 
-    directories.forEach((dir) => {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
-      }
+const get_document = ({ input_path }) => {
+  const html = fs.readFileSync(input_path, "utf8");
+  const dom = new JSDOM(html);
+  return dom.window.document;
+};
+
+const get_season_poster = ({ index }) =>
+  index < metadata.seasonPosters.length
+    ? metadata.seasonPosters[index]
+    : metadata.seriesInfo.logo;
+
+const text_content = (el) =>
+  el && el.textContent ? el.textContent.trim() : "";
+
+const find_prev_heading = ({ node, tag }) => {
+  let cur = node;
+  while (cur && cur.previousElementSibling === null) cur = cur.parentElement;
+  while (cur) {
+    cur = cur.previousElementSibling;
+    if (!cur) break;
+    if (cur.tagName && cur.tagName.toLowerCase() === tag) return cur;
+    const nested = cur.querySelector && cur.querySelector(tag);
+    if (nested) return nested;
+  }
+  return null;
+};
+
+const collect_links = ({ document }) => {
+  const anchors = Array.from(
+    document.querySelectorAll('a[href*="pixeldrain.net"]'),
+  );
+  const arcs = [];
+  const seen = new Set();
+  anchors.forEach((a) => {
+    const h2 = find_prev_heading({ node: a, tag: "h2" });
+    const arc = text_content(h2) || "Unknown";
+    if (!seen.has(arc)) {
+      arcs.push(arc);
+      seen.add(arc);
+    }
+  });
+
+  const items = anchors.map((a) => {
+    const h2 = find_prev_heading({ node: a, tag: "h2" });
+    const h3 = find_prev_heading({ node: a, tag: "h3" });
+    const arc = text_content(h2) || "Unknown";
+    const version_title = text_content(h3);
+    const resolution = text_content(a.querySelector("span.grow"));
+    return { arc, version_title, resolution, href: a.href };
+  });
+  return { arcs, items };
+};
+
+const classify_version = ({ version_title }) => {
+  const vt = version_title || "";
+  if (vt.toLowerCase().includes("sub"))
+    return {
+      type: "subtitulado",
+      name: metadata.versions.types.subtitulado.identifier,
+      extended: vt.toLowerCase().includes("extended"),
+    };
+  if (vt.toLowerCase().includes("dobl"))
+    return {
+      type: "doblaje",
+      name: metadata.versions.types.doblaje.identifier,
+      extended: vt.toLowerCase().includes("extended"),
+    };
+  return {
+    type: "unknown",
+    name: "",
+    extended: vt.toLowerCase().includes("extended"),
+  };
+};
+
+const fetch_pixeldrain_files = async ({ list_id }) => {
+  const url = `https://pixeldrain.net/api/list/${list_id}`;
+  const res = await axios.get(url);
+  if (!res.data || !res.data.success || !Array.isArray(res.data.files))
+    return [];
+  return res.data.files;
+};
+
+const extract_episode_number = ({ file_name, index }) => {
+  const m = (file_name || "").match(/(\d{1,3})/);
+  return m ? parseInt(m[1], 10) : index + 1;
+};
+
+const create_one_pace_addon = async () => {
+  try {
+    console.log("[onepace] Starting addon generation");
+    ensure_dirs({
+      dirs: [
+        metadata.paths.dataDir,
+        metadata.paths.srcDir,
+        metadata.paths.publicDir,
+      ],
+    });
+    console.log("[onepace] Ensured directories:", {
+      data_dir: metadata.paths.dataDir,
+      src_dir: metadata.paths.srcDir,
+      public_dir: metadata.paths.publicDir,
     });
 
-    // Lee el HTML
-    const htmlContent = fs.readFileSync(metadata.paths.inputFile, "utf8");
-    const dom = new JSDOM(htmlContent);
-    const document = dom.window.document;
+    const document = get_document({ input_path: metadata.paths.inputFile });
+    console.log("[onepace] Loaded HTML from", metadata.paths.inputFile);
 
-    // Extrae todos los arcos (que serán temporadas)
-    const arcElements = document.querySelectorAll('div[role="listitem"][id]');
-
-    // Guardar información general en archivos JSON
     fs.writeFileSync(
       path.join(metadata.paths.dataDir, "series_info.json"),
       JSON.stringify(metadata.seriesInfo, null, 2),
       "utf8",
     );
-
     fs.writeFileSync(
       path.join(metadata.paths.dataDir, "season_posters.json"),
       JSON.stringify(metadata.seasonPosters, null, 2),
       "utf8",
     );
 
-    // Prepara arrays para almacenar los datos
     const videos = [];
     const streams = {};
     const seasons = [];
 
-    // ID de temporada
-    let seasonNumber = 1;
-    let posterIndex = 0;
+    let arc_nodes = Array.from(
+      document.querySelectorAll('div[role="listitem"][id]') || [],
+    );
+    if (arc_nodes.length === 0) {
+      arc_nodes = Array.from(document.querySelectorAll("ol > li[id]") || []);
+    }
 
-    // Procesa cada arco como una temporada
-    for (const arcElement of arcElements) {
-      const arcName = arcElement.querySelector("h2").textContent.trim();
-      const notAvailable = arcElement.querySelector("p.italic.text-gray-400");
+    let season_number = 1;
+    let poster_index = 0;
 
-      // Obtiene el poster para esta temporada
-      const poster =
-        posterIndex < metadata.seasonPosters.length
-          ? metadata.seasonPosters[posterIndex]
-          : metadata.seriesInfo.logo;
-      posterIndex++;
-
-      // Añadir la temporada al listado con su nombre personalizado y poster
-      seasons.push({
-        id: seasonNumber.toString(),
-        title: arcName,
-        season: seasonNumber,
-        poster: poster,
-      });
-
-      // Si no está disponible, saltamos este arco
-      if (
-        notAvailable &&
-        notAvailable.textContent.includes("Not yet available")
-      ) {
-        console.log(`Arco no disponible: ${arcName}`);
-        seasonNumber++; // Incrementamos igualmente para mantener el orden
-        continue;
-      }
-
-      // Buscar todas las versiones disponibles
-      const versionElements = arcElement.querySelectorAll("h3.flex.grow");
-      let versionStreams = {}; // Para almacenar todas las versiones para cada episodio
-
-      // Procesar todas las versiones disponibles
-      for (const versionElement of versionElements) {
-        const versionTitle = versionElement.textContent.trim();
-        let versionType = "";
-        let versionName = "";
-
-        // Determinar tipo de versión
-        if (versionTitle.includes("Subtitulos")) {
-          versionType = "subtitulado";
-          versionName = metadata.versions.types.subtitulado.identifier;
-        } else if (versionTitle.includes("Doblaje")) {
-          versionType = "doblaje";
-          versionName = metadata.versions.types.doblaje.identifier;
-        } else {
-          continue; // Saltamos versiones desconocidas
-        }
-
-        // Verificar si es una versión extended
-        const isExtended = versionTitle.includes("Extended");
-
-        const linkElements = versionElement.parentElement.querySelectorAll(
-          'a[href*="pixeldrain.net"]',
+    if (arc_nodes.length > 0) {
+      console.log("[onepace] Found arc containers:", arc_nodes.length);
+      for (const arc_element of arc_nodes) {
+        const arc_name = text_content(arc_element.querySelector("h2"));
+        console.log(
+          "[onepace] Processing season",
+          season_number,
+          "arc:",
+          arc_name,
         );
 
-        // Para cada episodio de la temporada
-        // Elegimos el enlace de mayor calidad disponible (normalmente el último)
-        if (linkElements.length > 0) {
-          const linkElement = linkElements[linkElements.length - 1];
-          const resolution = linkElement
-            .querySelector("span.grow")
-            .textContent.trim();
-          const pixeldrainUrl = linkElement.href;
-          const listId = pixeldrainUrl.split("/").pop();
+        const not_available = arc_element.querySelector(
+          "p.italic.text-gray-400",
+        );
+        const poster = get_season_poster({ index: poster_index++ });
+        seasons.push({
+          id: String(season_number),
+          title: arc_name,
+          season: season_number,
+          poster,
+        });
+        if (
+          not_available &&
+          text_content(not_available).includes("Not yet available")
+        ) {
+          console.log(
+            "[onepace] Skipping unavailable arc",
+            arc_name,
+            "(season",
+            season_number,
+            ")",
+          );
+          season_number++;
+          continue;
+        }
 
-          try {
-            // Obtenemos los archivos de la lista de Pixeldrain
-            const response = await axios.get(
-              `https://pixeldrain.net/api/list/${listId}`,
-            );
+        const version_streams = {};
+        const version_elements_old =
+          arc_element.querySelectorAll("h3.flex.grow") || [];
 
-            if (response.data && response.data.success && response.data.files) {
-              // Procesar los archivos
-              for (const file of response.data.files) {
-                // Convertir URL para el stream
-                const streamUrl = `https://pd.1drv.eu.org/${file.id}?download`;
-
-                // Extraer número de episodio del nombre del archivo
-                // Aquí podría necesitar una lógica más compleja
-
-                // Para simplificar, usamos el índice del archivo como episodio
-                // Esto debería mejorarse para extraer el número real de episodio
-                const episodeNumber = response.data.files.indexOf(file) + 1;
-
-                // Generar un ID único para el video
-                const videoId = `op:${seasonNumber}:${episodeNumber}`;
-
-                // Crear un stream para esta versión
-                const streamObj = {
-                  url: streamUrl,
-                  title: versionName + (isExtended ? " (Extended)" : ""),
-                  name: `${resolution} ${
-                    versionType === "doblaje" ? "Doblado" : "Subtitulado"
-                  }${isExtended ? " Extended" : ""}`,
+        if (version_elements_old.length > 0) {
+          console.log(
+            "[onepace] Found versions (old layout) for arc",
+            arc_name,
+            ":",
+            version_elements_old.length,
+          );
+          for (const ve of version_elements_old) {
+            const version_title = text_content(ve);
+            const cls = classify_version({ version_title });
+            if (cls.type === "unknown") continue;
+            const links = ve.parentElement
+              ? ve.parentElement.querySelectorAll('a[href*="pixeldrain.net"]')
+              : [];
+            if (!links || links.length === 0) continue;
+            const link = links[links.length - 1];
+            const resolution = text_content(link.querySelector("span.grow"));
+            const list_id = (link.href || "").split("/").pop();
+            try {
+              const files = await fetch_pixeldrain_files({ list_id });
+              console.log(
+                "[onepace] Pixeldrain list",
+                list_id,
+                "has",
+                files.length,
+                "files for",
+                arc_name,
+                "version",
+                version_title,
+              );
+              for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                const episode = extract_episode_number({
+                  file_name: f.name,
+                  index: i,
+                });
+                const video_id = `op:${season_number}:${episode}`;
+                const stream_obj = {
+                  url: `https://pd.1drv.eu.org/${f.id}`,
+                  title: cls.name + (cls.extended ? " (Extended)" : ""),
+                  name: `${resolution} ${cls.type === "doblaje" ? "Doblado" : "Subtitulado"}${cls.extended ? " Extended" : ""}`,
                 };
-
-                // Añadir a la lista de streams para este episodio
-                if (!versionStreams[videoId]) {
-                  versionStreams[videoId] = [];
-                }
-                versionStreams[videoId].push(streamObj);
-
-                // Solo creamos el objeto de video una vez para cada episodio
-                if (!streams[videoId]) {
-                  // Crear un objeto de video
+                if (!version_streams[video_id]) version_streams[video_id] = [];
+                version_streams[video_id].push(stream_obj);
+                if (!streams[video_id]) {
                   const video = {
-                    id: videoId,
-                    title: `${arcName} - Episodio ${episodeNumber}`,
-                    season: seasonNumber,
-                    episode: episodeNumber,
-                    thumbnail: poster, // Usamos el mismo póster como thumbnail
+                    id: video_id,
+                    title: `${arc_name} - Episodio ${episode}`,
+                    season: season_number,
+                    episode: episode,
+                    thumbnail: poster,
                   };
-
-                  // Añadir el video a la lista solo si no existe
-                  if (!videos.find((v) => v.id === videoId)) {
+                  if (!videos.find((v) => v.id === video_id)) {
                     videos.push(video);
                   }
                 }
               }
+            } catch (e) {
+              console.error(
+                "[onepace] Error fetching Pixeldrain list",
+                list_id,
+                "for arc",
+                arc_name,
+                "version",
+                version_title,
+                e.message,
+              );
             }
-          } catch (error) {
+          }
+        } else {
+          const version_blocks = Array.from(
+            arc_element.querySelectorAll("ul li"),
+          ).filter((li) => {
+            if (!li.parentElement || !li.parentElement.parentElement)
+              return false;
+            if (li.parentElement.parentElement !== arc_element) return false;
+            return [...li.querySelectorAll("a")].some((a) =>
+              String(a.href || "").includes("pixeldrain.net"),
+            );
+          });
+
+          console.log(
+            "[onepace] Found versions (new layout) for arc",
+            arc_name,
+            ":",
+            version_blocks.length,
+          );
+
+          for (const block of version_blocks) {
+            const raw_title = text_content(block);
+            const pix_index = raw_title.indexOf("Pixeldrain");
+            const version_title =
+              pix_index >= 0 ? raw_title.slice(0, pix_index).trim() : raw_title;
+            const cls = classify_version({ version_title });
+            if (cls.type === "unknown") continue;
+
+            const anchors = [...block.querySelectorAll("a")].filter((a) =>
+              String(a.href || "").includes("pixeldrain.net"),
+            );
+            if (!anchors.length) continue;
+
+            const link = anchors[anchors.length - 1];
+            const label = text_content(link);
+            const match = label.match(/(\\d{3,4}p)/i);
+            const resolution = match ? match[1] : label;
+            const list_id = (link.href || "").split("/").pop();
+
+            try {
+              const files = await fetch_pixeldrain_files({ list_id });
+              console.log(
+                "[onepace] Pixeldrain list",
+                list_id,
+                "has",
+                files.length,
+                "files for",
+                arc_name,
+                "version",
+                version_title,
+              );
+              for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                const episode = extract_episode_number({
+                  file_name: f.name,
+                  index: i,
+                });
+                const video_id = `op:${season_number}:${episode}`;
+                const stream_obj = {
+                  url: `https://pd.1drv.eu.org/${f.id}?download`,
+                  title: cls.name + (cls.extended ? " (Extended)" : ""),
+                  name: `${resolution} ${cls.type === "doblaje" ? "Doblado" : "Subtitulado"}${cls.extended ? " Extended" : ""}`,
+                };
+                if (!version_streams[video_id]) version_streams[video_id] = [];
+                version_streams[video_id].push(stream_obj);
+                if (!streams[video_id]) {
+                  const video = {
+                    id: video_id,
+                    title: `${arc_name} - Episodio ${episode}`,
+                    season: season_number,
+                    episode: episode,
+                    thumbnail: poster,
+                  };
+                  if (!videos.find((v) => v.id === video_id)) {
+                    videos.push(video);
+                  }
+                }
+              }
+            } catch (e) {
+              console.error(
+                "[onepace] Error fetching Pixeldrain list",
+                list_id,
+                "for arc",
+                arc_name,
+                "version",
+                version_title,
+                e.message,
+              );
+            }
+          }
+        }
+        Object.keys(version_streams).forEach((vid) => {
+          streams[vid] = version_streams[vid];
+        });
+        season_number++;
+      }
+    } else {
+      console.log(
+        "[onepace] No arc containers found, falling back to anchor scan",
+      );
+      const { arcs, items } = collect_links({ document });
+      console.log(
+        "[onepace] Anchor scan arcs:",
+        arcs.length,
+        "items:",
+        items.length,
+      );
+      const arc_order = arcs;
+      const grouped = new Map();
+      items.forEach((it) => {
+        if (!grouped.has(it.arc)) grouped.set(it.arc, []);
+        grouped.get(it.arc).push(it);
+      });
+      for (const arc_name of arc_order) {
+        const poster = get_season_poster({ index: poster_index++ });
+        seasons.push({
+          id: String(season_number),
+          title: arc_name,
+          season: season_number,
+          poster,
+        });
+        console.log(
+          "[onepace] Processing season",
+          season_number,
+          "arc:",
+          arc_name,
+        );
+        const list = grouped.get(arc_name) || [];
+        const version_streams = {};
+        for (const it of list) {
+          const cls = classify_version({ version_title: it.version_title });
+          if (cls.type === "unknown") continue;
+          const list_id = (it.href || "").split("/").pop();
+          try {
+            const files = await fetch_pixeldrain_files({ list_id });
+            console.log(
+              "[onepace] Pixeldrain list",
+              list_id,
+              "has",
+              files.length,
+              "files for",
+              arc_name,
+              "version",
+              it.version_title,
+            );
+            for (let i = 0; i < files.length; i++) {
+              const f = files[i];
+              const episode = extract_episode_number({
+                file_name: f.name,
+                index: i,
+              });
+              const video_id = `op:${season_number}:${episode}`;
+              const stream_obj = {
+                url: `https://pd.1drv.eu.org/${f.id}?download`,
+                title: cls.name + (cls.extended ? " (Extended)" : ""),
+                name: `${it.resolution || ""} ${cls.type === "doblaje" ? "Doblado" : "Subtitulado"}${cls.extended ? " Extended" : ""}`,
+              };
+              if (!version_streams[video_id]) version_streams[video_id] = [];
+              version_streams[video_id].push(stream_obj);
+              if (!streams[video_id]) {
+                const video = {
+                  id: video_id,
+                  title: `${arc_name} - Episodio ${episode}`,
+                  season: season_number,
+                  episode: episode,
+                  thumbnail: poster,
+                };
+                if (!videos.find((v) => v.id === video_id)) videos.push(video);
+              }
+            }
+          } catch (e) {
             console.error(
-              `Error al obtener archivos de Pixeldrain para ${arcName} (${versionName}):`,
-              error.message,
+              "[onepace] Error fetching Pixeldrain list",
+              list_id,
+              "for arc",
+              arc_name,
+              "version",
+              it.version_title,
+              e.message,
             );
           }
         }
+        Object.keys(version_streams).forEach((vid) => {
+          streams[vid] = version_streams[vid];
+        });
+        season_number++;
       }
-
-      // Ahora combinamos todos los streams para cada episodio
-      for (const videoId in versionStreams) {
-        streams[videoId] = versionStreams[videoId];
-      }
-
-      // Incrementar el número de temporada
-      seasonNumber++;
     }
 
-    // Ordenar videos por temporada y episodio
-    videos.sort((a, b) => {
-      if (a.season !== b.season) {
-        return a.season - b.season;
-      }
-      return a.episode - b.episode;
-    });
+    videos.sort((a, b) =>
+      a.season !== b.season ? a.season - b.season : a.episode - b.episode,
+    );
 
-    // Guardar datos en archivos JSON
+    console.log("[onepace] Summary:");
+    console.log("[onepace] Seasons:", seasons.length);
+    console.log("[onepace] Videos:", videos.length);
+    console.log(
+      "[onepace] Episodes with streams:",
+      Object.keys(streams).length,
+    );
+
     fs.writeFileSync(
       path.join(metadata.paths.dataDir, "videos.json"),
       JSON.stringify(videos, null, 2),
       "utf8",
     );
-
     fs.writeFileSync(
       path.join(metadata.paths.dataDir, "streams.json"),
       JSON.stringify(streams, null, 2),
       "utf8",
     );
-
     fs.writeFileSync(
       path.join(metadata.paths.dataDir, "seasons.json"),
       JSON.stringify(seasons, null, 2),
       "utf8",
     );
 
-    // Crear el manifest completo del addon
+    console.log("[onepace] Wrote data files to", metadata.paths.dataDir);
+
     const manifest = {
       ...metadata.manifest,
       logo: metadata.seriesInfo.logo,
@@ -236,8 +484,7 @@ async function createOnePaceAddon() {
       ],
     };
 
-    // Crear el meta objeto para la serie principal
-    const metaObj = {
+    const meta_obj = {
       id: metadata.seriesInfo.id,
       type: "series",
       name: metadata.seriesInfo.name,
@@ -251,134 +498,70 @@ async function createOnePaceAddon() {
       seasons: seasons,
     };
 
-    // Guardar manifest y meta en archivos JSON
     fs.writeFileSync(
       path.join(metadata.paths.dataDir, "manifest.json"),
       JSON.stringify(manifest, null, 2),
       "utf8",
     );
-
     fs.writeFileSync(
       path.join(metadata.paths.dataDir, "meta.json"),
-      JSON.stringify(metaObj, null, 2),
+      JSON.stringify(meta_obj, null, 2),
       "utf8",
     );
 
-    // Generar archivo principal del addon
-    const addonCode = `
-const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
+    console.log("[onepace] Wrote manifest and meta to", metadata.paths.dataDir);
 
-// Cargar datos desde archivos JSON
+    const addon_code = `
+const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
 const manifest = require('./data/manifest.json');
 const meta = require('./data/meta.json');
 const streams = require('./data/streams.json');
-
-// Crear el builder
 const builder = new addonBuilder(manifest);
-
-// Manejador de catálogo
 builder.defineCatalogHandler(({ type, id }) => {
   if (type === 'series' && id === 'one_pace_catalog') {
-    // Devolver solo una entrada para One Pace
-    return Promise.resolve({
-      metas: [{
-        id: "${metadata.seriesInfo.id}",
-        type: "series",
-        name: "${metadata.seriesInfo.name}",
-        poster: meta.poster,
-        posterShape: "regular",
-        description: "${metadata.seriesInfo.description}"
-      }]
-    });
+    return Promise.resolve({ metas: [{ id: "${metadata.seriesInfo.id}", type: "series", name: "${metadata.seriesInfo.name}", poster: meta.poster, posterShape: "regular", description: "${metadata.seriesInfo.description}" }] });
   }
-  
   return Promise.resolve({ metas: [] });
 });
-
-// Manejador de metadatos
 builder.defineMetaHandler(({ type, id }) => {
-  if (type === 'series' && id === '${metadata.seriesInfo.id}') {
-    return Promise.resolve({ meta });
-  }
-  
+  if (type === 'series' && id === '${metadata.seriesInfo.id}') return Promise.resolve({ meta });
   return Promise.resolve({ meta: null });
 });
-
-// Manejador de streams
 builder.defineStreamHandler(({ type, id }) => {
-  if (streams[id]) {
-    return Promise.resolve({ streams: streams[id] });
-  }
-  
+  if (streams[id]) return Promise.resolve({ streams: streams[id] });
   return Promise.resolve({ streams: [] });
 });
-
-// Iniciar el servidor
-serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
-console.log("Addon ${metadata.manifest.name} corriendo en http://localhost:7000");
+const port = process.env.PORT || 7000;
+serveHTTP(builder.getInterface(), { port });
+console.log("Addon ${metadata.manifest.name} corriendo en http://localhost:" + port);
 `;
 
-    // Generar archivo de inicio
-    fs.writeFileSync("addon.js", addonCode, "utf8");
+    fs.writeFileSync("addon.js", addon_code, "utf8");
 
-    // Crear package.json
-    const packageJson = {
+    const package_json = {
       name: "one-pace-espanol-addon",
       version: metadata.manifest.version,
       description: metadata.manifest.description,
       main: "addon.js",
-      scripts: {
-        start: "node addon.js",
-        build: "node script.js",
-      },
+      scripts: { start: "node addon.js", build: "node script.js" },
       dependencies: {
         "stremio-addon-sdk": "^1.6.10",
         axios: "^0.21.1",
         jsdom: "^20.0.0",
       },
     };
-
     fs.writeFileSync(
       "package.json",
-      JSON.stringify(packageJson, null, 2),
+      JSON.stringify(package_json, null, 2),
       "utf8",
     );
-
-    console.log("\n=== Addon generado exitosamente ===");
-    console.log("Estructura de archivos:");
-    console.log("- addon.js - El archivo principal del addon");
-    console.log("- script.js - El script generador");
-    console.log("- metadata.js - Configuración de metadatos y versiones");
-    console.log("- package.json - Configuración del proyecto");
-    console.log("- data/ - Directorio con los archivos JSON de datos");
-    console.log("  - manifest.json - Manifiesto del addon");
-    console.log("  - meta.json - Metadatos de la serie");
-    console.log("  - seasons.json - Información de temporadas");
-    console.log("  - videos.json - Información de videos");
-    console.log(
-      "  - streams.json - Enlaces de streaming (incluye todas las versiones)",
-    );
-    console.log("  - series_info.json - Información general de la serie");
-    console.log("  - season_posters.json - Listado de posters por temporada");
-    console.log("\nPara correr el addon:");
-    console.log("1. Instala las dependencias: npm install");
-    console.log("2. Inicia el addon: npm start");
-    console.log("3. Instala en Stremio: http://localhost:7000/manifest.json");
-    console.log("\nPara regenerar los datos:");
-    console.log("1. Edita paste.txt con el nuevo contenido");
-    console.log("2. Ejecuta: npm run build");
-    console.log("\nPara modificar metadatos y configuración de versiones:");
-    console.log("1. Edita metadata.js con la información que desees cambiar");
-    console.log("2. Ejecuta: npm run build para regenerar los archivos");
-  } catch (error) {
-    console.error("Error al crear el addon:", error);
+    console.log("[onepace] Wrote addon.js and package.json");
+    console.log("[onepace] Addon generation finished successfully");
+  } catch (e) {
+    console.error("Error al crear el addon:", e);
   }
-}
+};
 
-// Si este script se ejecuta directamente (no es importado)
-if (require.main === module) {
-  createOnePaceAddon();
-}
+if (require.main === module) create_one_pace_addon();
 
-// Exportamos la función para poder usarla desde otros scripts
-module.exports = { createOnePaceAddon };
+module.exports = { create_one_pace_addon };
