@@ -30,8 +30,7 @@ builder.defineStreamHandler(({ type, id }) => {
   return Promise.resolve({ streams: [] });
 });
 
-serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
+serveHTTP(builder.getInterface(), { port: process.env.PORT });
 console.log(
-  "Addon One Pace en Español corriendo en http://localhost:" +
-    process.env.PORT || 7000,
+  "Addon One Pace en Español corriendo en http://localhost:" + process.env.PORT,
 );
