@@ -8,8 +8,8 @@
     "build": "node script.js"
   },
   "dependencies": {
+    "stremio-addon-sdk": "^1.6.10",
     "axios": "^0.21.1",
-    "jsdom": "^20.0.0",
-    "stremio-addon-sdk": "^1.6.10"
+    "jsdom": "^20.0.0"
   }
 }
