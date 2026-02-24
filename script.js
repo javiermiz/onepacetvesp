@@ -93,8 +93,9 @@ const fetch_pixeldrain_files = async ({ list_id }) => {
 };
 
 const extract_episode_number = ({ file_name, index }) => {
-  const m = (file_name || "").match(/(\d{1,3})/);
-  return m ? parseInt(m[1], 10) : index + 1;
+  const cleaned_name = (file_name || "").replace(/\[[^\]]*]/g, " ");
+  const match = cleaned_name.match(/(\d{1,3})/);
+  return match ? parseInt(match[1], 10) : index + 1;
 };
 
 const create_one_pace_addon = async () => {
